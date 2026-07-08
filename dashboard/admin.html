@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privelgo Admin & Operator Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        :root {
+            --dark: #184E6C; --steel: #387EA2; --sky: #5BA3C6;
+            --light: #9BCBE5; --bg: #DDECF6; --white: #fff;
+            --text: #1C2A38; --grey: #7A8D9F;
+            --green: #2E7D32; --orange: #E65100; --red: #C62828;
+            --sidebar-w: 240px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: linear-gradient(180deg, var(--dark) 0%, #0e2e40 100%);
+            display: flex; flex-direction: column;
+            flex-shrink: 0; height: 100vh;
+            position: sticky; top: 0;
+            overflow-y: auto;
+        }
+        .sidebar::-webkit-scrollbar { display: none; }
+        .sidebar-brand {
+            padding: 28px 20px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .sidebar-brand .name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px; font-weight: 800; color: white;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .sidebar-brand .name svg { width: 28px; height: 28px; }
+        .sidebar-brand .role { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+
+        .nav-group { padding: 16px 12px 8px; }
+        .nav-group-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.3); padding: 0 8px; margin-bottom: 6px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 12px; border-radius: 12px;
+            color: rgba(255,255,255,0.6); font-size: 12.5px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; margin-bottom: 2px;
+        }
+        .nav-item i { font-size: 14px; width: 16px; text-align: center; }
+        .nav-item:hover { background: rgba(255,255,255,0.07); color: white; }
+        .nav-item.active { background: rgba(255,255,255,0.12); color: white; }
+        .nav-item .badge { margin-left: auto; background: var(--red); color: white; border-radius: 6px; padding: 2px 6px; font-size: 9px; font-weight: 700; }
+
+        .sidebar-user {
+            margin-top: auto; padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .s-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); }
+        .s-meta h5 { font-size: 12px; font-weight: 700; color: white; }
+        .s-meta p { font-size: 9px; color: rgba(255,255,255,0.4); }
+        .s-logout { margin-left: auto; color: rgba(255,255,255,0.4); font-size: 14px; cursor: pointer; }
+        .s-logout:hover { color: white; }
+
+        /* ── MAIN CONTENT ── */
+        .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .topbar {
+            background: var(--white); padding: 16px 28px;
+            border-bottom: 1px solid rgba(24,78,108,0.06);
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0; position: sticky; top: 0; z-index: 20;
+        }
+        .topbar h2 { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: var(--dark); }
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .topbar-badge { background: rgba(46,125,50,0.1); color: var(--green); border: 1px solid rgba(46,125,50,0.2); border-radius: 10px; padding: 5px 12px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: blink 1.5s infinite; }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .topbar a { background: var(--dark); color: white; border-radius: 10px; padding: 8px 14px; font-size: 11px; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 6px; }
+
+        .content { padding: 24px 28px; display: flex; flex-direction: column; gap: 24px; }
+
+        /* Metrics */
+        .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .metric-card {
+            background: var(--white); border-radius: 20px; padding: 20px;
+            box-shadow: 0 2px 12px rgba(24,78,108,0.05); position: relative; overflow: hidden;
+        }
+        .metric-card::before { content: ''; position: absolute; top: -30px; right: -20px; width: 100px; height: 100px; border-radius: 50%; opacity: 0.06; }
+        .metric-card.m-blue::before { background: var(--dark); }
+        .metric-card.m-green::before { background: var(--green); }
+        .metric-card.m-orange::before { background: var(--orange); }
+        .metric-card.m-purple::before { background: #6A1B9A; }
+        .metric-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .metric-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .m-blue .metric-icon { background: rgba(24,78,108,0.1); color: var(--dark); }
+        .m-green .metric-icon { background: rgba(46,125,50,0.1); color: var(--green); }
+        .m-orange .metric-icon { background: rgba(230,81,0,0.1); color: var(--orange); }
+        .m-purple .metric-icon { background: rgba(106,27,154,0.1); color: #6A1B9A; }
+        .metric-trend { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+        .trend-up { background: #E8F5E9; color: var(--green); }
+        .trend-down { background: #FFEBEE; color: var(--red); }
+        .metric-val { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; color: var(--dark); line-height: 1; margin-bottom: 4px; }
+        .metric-lbl { font-size: 11px; color: var(--grey); font-weight: 600; }
+
+        /* Grid layout for charts + panels */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+
+        .panel {
+            background: var(--white); border-radius: 20px;
+            padding: 20px; box-shadow: 0 2px 12px rgba(24,78,108,0.05);
+        }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+        .panel-header h3 { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--dark); }
+        .panel-header a { font-size: 11px; color: var(--steel); font-weight: 600; text-decoration: none; cursor: pointer; }
+
+        /* Chart */
+        .chart-box { position: relative; height: 200px; }
+
+        /* Fleet Table */
+        .fleet-table { width: 100%; border-collapse: collapse; }
+        .fleet-table th { font-size: 10px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 12px 10px; text-align: left; }
+        .fleet-table tr.bus-row { cursor: pointer; transition: background 0.15s; }
+        .fleet-table tr.bus-row:hover td { background: rgba(24,78,108,0.03); }
+        .fleet-table td { padding: 12px; border-top: 1px solid rgba(24,78,108,0.04); font-size: 12px; }
+        .td-badge { display: inline-flex; align-items: center; gap: 6px; }
+        .bus-num-chip { background: var(--dark); color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; }
+        .occ-chip { padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+        .oc-green { background: #E8F5E9; color: var(--green); }
+        .oc-orange { background: #FFF3E0; color: var(--orange); }
+        .oc-red { background: #FFEBEE; color: var(--red); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        .sd-green { background: var(--green); }
+        .sd-orange { background: var(--orange); }
+        .sd-red { background: var(--red); }
+        .td-gray { color: var(--grey); font-size: 11px; }
+
+        /* Incidents */
+        .incident-list { display: flex; flex-direction: column; gap: 10px; }
+        .incident-card { border-left: 3px solid; padding: 12px 14px; border-radius: 0 12px 12px 0; background: var(--bg); }
+        .incident-card.sev-high { border-color: var(--red); }
+        .incident-card.sev-med { border-color: var(--orange); }
+        .incident-card.sev-low { border-color: var(--grey); }
+        .ic-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .ic-cat { font-size: 11px; font-weight: 700; }
+        .ic-stat { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+        .ic-stat.pending { background: #FFEBEE; color: var(--red); }
+        .ic-stat.resolved { background: #E8F5E9; color: var(--green); }
+        .ic-meta { font-size: 10px; color: var(--grey); margin-bottom: 4px; }
+        .ic-desc { font-size: 11px; color: var(--text); }
+        .ic-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .ic-btn { border: none; border-radius: 6px; padding: 5px 10px; font-size: 10px; font-weight: 700; cursor: pointer; }
+        .ic-btn.resolve { background: #E8F5E9; color: var(--green); }
+        .ic-btn.escalate { background: #FFEBEE; color: var(--red); }
+
+        /* Reviews Moderation */
+        .review-mod-list { display: flex; flex-direction: column; gap: 10px; }
+        .review-mod-card { background: var(--bg); border-radius: 14px; padding: 14px; }
+        .rmc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .rmc-head span { font-size: 12px; font-weight: 700; color: var(--dark); }
+        .stars { color: #FFB300; font-size: 11px; }
+        .rmc-bus { font-size: 10px; color: var(--grey); margin-bottom: 6px; }
+        .rmc-comment { font-size: 11px; color: #444; font-style: italic; line-height: 1.5; margin-bottom: 10px; }
+        .rmc-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .btn-approve { background: var(--green); color: white; border: none; border-radius: 8px; padding: 6px 14px; font-size: 10px; font-weight: 700; cursor: pointer; }
+        .btn-reject { background: var(--red); color: white; border: none; border-radius: 8px; padding: 6px 14px; font-size: 10px; font-weight: 700; cursor: pointer; }
+
+        /* Empty State */
+        .empty { text-align: center; padding: 30px; color: var(--grey); font-size: 12px; }
+        .empty i { font-size: 28px; margin-bottom: 8px; opacity: 0.3; display: block; }
+
+        /* Mini Map */
+        #admin-map { border-radius: 16px; overflow: hidden; height: 220px; }
+
+        /* Notification Toast */
+        .toast {
+            position: fixed; bottom: 30px; right: 30px;
+            background: var(--dark); color: white;
+            border-radius: 14px; padding: 14px 20px;
+            font-size: 12px; font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            display: flex; align-items: center; gap: 10px;
+            transform: translateY(100px); opacity: 0;
+            transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+            z-index: 100; max-width: 320px;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="name">
+                <svg viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="8" fill="rgba(255,255,255,0.1)"/><path d="M5 17 L18 12 C21 11 23 12.5 23 15 L23 17 C23 19 21 20 19 20.5 L8 22 C6 22.5 4.5 21 4.5 19.5 Z" fill="#9BCBE5"/><circle cx="9" cy="20" r="2" fill="#184E6C"/><circle cx="19" cy="18" r="2" fill="#184E6C"/></svg>
+                Privelgo
+            </div>
+            <div class="role">Fleet Control Center · Admin</div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-label">Overview</div>
+            <div class="nav-item active" onclick="showSection('overview')"><i class="fa-solid fa-gauge-high"></i> Dashboard</div>
+            <div class="nav-item" onclick="showSection('fleet')"><i class="fa-solid fa-bus"></i> Live Fleet <span class="badge">3</span></div>
+            <div class="nav-item" onclick="showSection('analytics')"><i class="fa-solid fa-chart-bar"></i> Analytics</div>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-label">Operations</div>
+            <div class="nav-item" onclick="showSection('incidents')"><i class="fa-solid fa-circle-exclamation"></i> Incidents <span class="badge" id="inc-badge" style="display:none">1</span></div>
+            <div class="nav-item" onclick="showSection('reviews')"><i class="fa-solid fa-star"></i> Reviews</div>
+            <div class="nav-item" onclick="showSection('routes')"><i class="fa-solid fa-route"></i> Routes & Stops</div>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-label">Management</div>
+            <div class="nav-item"><i class="fa-solid fa-id-badge"></i> Drivers</div>
+            <div class="nav-item"><i class="fa-solid fa-building"></i> Operators</div>
+            <div class="nav-item"><i class="fa-solid fa-users"></i> Passengers</div>
+        </div>
+
+        <div class="sidebar-user">
+            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80" alt="Admin" class="s-avatar">
+            <div class="s-meta"><h5>System Admin</h5><p>admin@privelgo.com</p></div>
+            <a href="index.html" class="s-logout" title="Back to hub"><i class="fa-solid fa-right-from-bracket"></i></a>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+        <div class="topbar">
+            <h2 id="topbar-title">Fleet Dashboard</h2>
+            <div class="topbar-right">
+                <div class="topbar-badge"><div class="live-dot"></div> System Online</div>
+                <a href="index.html"><i class="fa-solid fa-grid-2"></i> All Portals</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <!-- METRICS -->
+            <div class="metrics-row">
+                <div class="metric-card m-blue">
+                    <div class="metric-top">
+                        <div class="metric-icon"><i class="fa-solid fa-bus"></i></div>
+                        <span class="metric-trend trend-up">↑ 2</span>
+                    </div>
+                    <div class="metric-val" id="m-buses">3</div>
+                    <div class="metric-lbl">Active Buses</div>
+                </div>
+                <div class="metric-card m-green">
+                    <div class="metric-top">
+                        <div class="metric-icon"><i class="fa-solid fa-users"></i></div>
+                        <span class="metric-trend trend-up">↑ 12%</span>
+                    </div>
+                    <div class="metric-val">84</div>
+                    <div class="metric-lbl">Live Passengers</div>
+                </div>
+                <div class="metric-card m-orange">
+                    <div class="metric-top">
+                        <div class="metric-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+                        <span class="metric-trend trend-down" id="m-inc-trend">0</span>
+                    </div>
+                    <div class="metric-val" id="m-incidents">0</div>
+                    <div class="metric-lbl">Open Incidents</div>
+                </div>
+                <div class="metric-card m-purple">
+                    <div class="metric-top">
+                        <div class="metric-icon"><i class="fa-solid fa-wallet"></i></div>
+                        <span class="metric-trend trend-up">↑ 8%</span>
+                    </div>
+                    <div class="metric-val">48.2k</div>
+                    <div class="metric-lbl">Revenue (LKR)</div>
+                </div>
+            </div>
+
+            <!-- CHART + MAP -->
+            <div class="grid-3">
+                <div class="panel">
+                    <div class="panel-header"><h3>Peak Hour Occupancy</h3><a>Last 24h</a></div>
+                    <div class="chart-box"><canvas id="chart-main"></canvas></div>
+                </div>
+                <div class="panel" style="padding:0;overflow:hidden">
+                    <div id="admin-map"></div>
+                    <div style="padding:14px">
+                        <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:6px">Live Fleet Map</div>
+                        <div style="font-size:10px;color:var(--grey)">3 buses broadcasting GPS · Colombo Metro</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLEET TABLE -->
+            <div class="panel">
+                <div class="panel-header"><h3>Active Fleet Status</h3><a onclick="showToast('Fleet data refreshed')">↻ Refresh</a></div>
+                <table class="fleet-table">
+                    <thead>
+                        <tr><th>Bus / Route</th><th>Driver</th><th>Location</th><th>Occupancy</th><th>Speed</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="bus-row" onclick="showToast('Opened Bus 138 details')">
+                            <td><span class="bus-num-chip">138</span> <span style="font-weight:600;font-size:12px">WP-ND-8432</span></td>
+                            <td style="font-size:12px">Sunil Perera</td>
+                            <td class="td-gray">Liberty Junction</td>
+                            <td><span class="occ-chip oc-green">🟢 Seats Avail.</span></td>
+                            <td class="td-gray">35 km/h</td>
+                            <td><span class="status-dot sd-green"></span><span style="font-size:11px;font-weight:600">On Time</span></td>
+                        </tr>
+                        <tr class="bus-row" onclick="showToast('Opened Bus 100 details')">
+                            <td><span class="bus-num-chip" style="background:var(--steel)">100</span> <span style="font-weight:600;font-size:12px">WP-NB-5544</span></td>
+                            <td style="font-size:12px">Amara Silva</td>
+                            <td class="td-gray">Wellawatte</td>
+                            <td><span class="occ-chip oc-orange">🟡 Crowded</span></td>
+                            <td class="td-gray">28 km/h</td>
+                            <td><span class="status-dot sd-orange"></span><span style="font-size:11px;font-weight:600">3 min late</span></td>
+                        </tr>
+                        <tr class="bus-row" onclick="showToast('Opened Bus 176 details')">
+                            <td><span class="bus-num-chip" style="background:#757575">176</span> <span style="font-weight:600;font-size:12px">WP-NC-9912</span></td>
+                            <td style="font-size:12px">K. Alwis</td>
+                            <td class="td-gray">Borella</td>
+                            <td><span class="occ-chip oc-red">🔴 Full</span></td>
+                            <td class="td-gray">12 km/h</td>
+                            <td><span class="status-dot sd-red"></span><span style="font-size:11px;font-weight:600">8 min late</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- INCIDENTS + REVIEWS -->
+            <div class="grid-2">
+                <!-- Incidents -->
+                <div class="panel">
+                    <div class="panel-header"><h3>Incident & Safety Feed</h3><a onclick="addTestIncident()">+ Add Test</a></div>
+                    <div class="incident-list" id="incident-list">
+                        <div class="incident-card sev-med">
+                            <div class="ic-head">
+                                <span class="ic-cat" style="color:var(--orange)">⚠️ Heavy Traffic Delay</span>
+                                <span class="ic-stat pending">Monitoring</span>
+                            </div>
+                            <div class="ic-meta">Bus 176 (WP-NC-9912) · Driver: K. Alwis · Just now</div>
+                            <div class="ic-desc">Route 176 delayed 8 mins at Borella Junction due to road construction.</div>
+                            <div class="ic-actions">
+                                <button class="ic-btn resolve" onclick="resolveIncident(this)">Mark Resolved</button>
+                                <button class="ic-btn escalate" onclick="escalateIncident(this)">Escalate</button>
+                            </div>
+                        </div>
+                        <div id="incident-sos-zone"></div>
+                    </div>
+                </div>
+
+                <!-- Reviews Moderation -->
+                <div class="panel">
+                    <div class="panel-header"><h3>Reviews Moderation</h3><span id="review-count" style="font-size:11px;color:var(--grey)">2 pending</span></div>
+                    <div class="review-mod-list" id="review-mod-list">
+                        <div class="review-mod-card">
+                            <div class="rmc-head"><span>Sanduni Fernando</span><span class="stars">★★★★★</span></div>
+                            <div class="rmc-bus">Bus WP-ND-8432 (Route 138)</div>
+                            <div class="rmc-comment">"Extremely clean bus with very fast WiFi. The AC is perfect for Colombo heat!"</div>
+                            <div class="rmc-actions">
+                                <button class="btn-reject" onclick="moderateReview(this, 'rejected')">Reject</button>
+                                <button class="btn-approve" onclick="moderateReview(this, 'approved')">Approve ✓</button>
+                            </div>
+                        </div>
+                        <div class="review-mod-card">
+                            <div class="rmc-head"><span>M. R. Mohamed</span><span class="stars">★★★★☆</span></div>
+                            <div class="rmc-bus">Bus WP-NB-5544 (Route 100)</div>
+                            <div class="rmc-comment">"Punctual bus, but it got quite crowded during office hours. Safe driving."</div>
+                            <div class="rmc-actions">
+                                <button class="btn-reject" onclick="moderateReview(this, 'rejected')">Reject</button>
+                                <button class="btn-approve" onclick="moderateReview(this, 'approved')">Approve ✓</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="height:20px"></div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toast-msg"></span></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    // ── CHART ──
+    const ctx = document.getElementById('chart-main').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['05:00','07:00','09:00','11:00','13:00','15:00','17:00','19:00','21:00'],
+            datasets: [
+                { label: 'Route 138', data: [8, 22, 42, 28, 18, 20, 40, 38, 14], borderColor: '#184E6C', backgroundColor: 'rgba(24,78,108,0.08)', tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#184E6C' },
+                { label: 'Route 100', data: [5, 35, 40, 22, 16, 18, 38, 35, 10], borderColor: '#387EA2', backgroundColor: 'rgba(56,126,162,0.05)', tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#387EA2' },
+                { label: 'Route 176', data: [3, 18, 32, 20, 14, 16, 34, 30, 8], borderColor: '#9BCBE5', backgroundColor: 'rgba(155,203,229,0.05)', tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#9BCBE5' },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 10 } } },
+            scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 9 } } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } }
+        }
+    });
+
+    // ── MAP ──
+    const map = L.map('admin-map', { zoomControl: false }).setView([6.892, 79.862], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '©OSM' }).addTo(map);
+
+    const makeAdminBusIcon = (num, color) => L.divIcon({ className: '', html: `<div style="background:${color};color:white;padding:3px 7px;border-radius:7px;font-weight:800;font-size:9px;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${num}</div>`, iconSize: [30, 18] });
+    const path = [[6.9322,79.8450],[6.9180,79.8510],[6.9125,79.8640],[6.9140,79.8800],[6.8760,79.8880]];
+    const m1 = L.marker(path[0], { icon: makeAdminBusIcon('138','#184E6C') }).addTo(map).bindPopup('Bus 138 • On Time');
+    const m2 = L.marker([6.882,79.860], { icon: makeAdminBusIcon('100','#2E7D32') }).addTo(map).bindPopup('Bus 100 • 3 min late');
+    const m3 = L.marker([6.902,79.875], { icon: makeAdminBusIcon('176','#757575') }).addTo(map).bindPopup('Bus 176 • 8 min late — Delayed');
+    L.polyline(path, { color:'#184E6C', weight:3, opacity:0.4, dashArray:'6,4' }).addTo(map);
+
+    let pathStep = 0;
+    setInterval(() => {
+        pathStep = (pathStep + 1) % path.length;
+        m1.setLatLng(path[pathStep]);
+    }, 4000);
+
+    // ── INTERACTIONS ──
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        document.getElementById('toast-msg').textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function resolveIncident(btn) {
+        const card = btn.closest('.incident-card');
+        const stat = card.querySelector('.ic-stat');
+        stat.textContent = 'Resolved'; stat.className = 'ic-stat resolved';
+        btn.remove();
+        showToast('Incident marked as resolved.');
+        updateIncidentCount();
+    }
+
+    function escalateIncident(btn) {
+        showToast('Incident escalated to supervisor and police dispatch.');
+    }
+
+    let incCount = 1;
+    function updateIncidentCount() {
+        incCount = Math.max(0, incCount - 1);
+        document.getElementById('m-incidents').textContent = incCount;
+        document.getElementById('m-inc-trend').textContent = incCount;
+        const badge = document.getElementById('inc-badge');
+        if (incCount > 0) { badge.style.display = ''; badge.textContent = incCount; }
+        else badge.style.display = 'none';
+    }
+
+    function addTestIncident() {
+        incCount++;
+        document.getElementById('m-incidents').textContent = incCount;
+        const badge = document.getElementById('inc-badge');
+        badge.style.display = ''; badge.textContent = incCount;
+        const list = document.getElementById('incident-list');
+        const card = document.createElement('div');
+        card.className = 'incident-card sev-high';
+        card.innerHTML = `
+            <div class="ic-head">
+                <span class="ic-cat" style="color:var(--red)">🚨 SOS Emergency Signal</span>
+                <span class="ic-stat pending">Urgent</span>
+            </div>
+            <div class="ic-meta">Bus 138 (WP-ND-8432) · Driver: Sunil Perera · Just now</div>
+            <div class="ic-desc">Emergency SOS triggered. GPS location broadcast active. Dispatcher notified.</div>
+            <div class="ic-actions">
+                <button class="ic-btn resolve" onclick="resolveIncident(this)">Mark Resolved</button>
+                <button class="ic-btn escalate" onclick="escalateIncident(this)">Escalate</button>
+            </div>`;
+        list.prepend(card);
+        showToast('⚠️ New SOS incident received from Bus 138!');
+    }
+
+    let pendingReviews = 2;
+    function moderateReview(btn, action) {
+        const card = btn.closest('.review-mod-card');
+        card.style.opacity = '0.4';
+        card.style.pointerEvents = 'none';
+        btn.closest('.rmc-actions').innerHTML = `<span style="font-size:10px;font-weight:700;color:${action==='approved'?'var(--green)':'var(--red)'}">${action==='approved'?'✓ Approved':'✗ Rejected'}</span>`;
+        pendingReviews = Math.max(0, pendingReviews - 1);
+        document.getElementById('review-count').textContent = pendingReviews + ' pending';
+        showToast(`Review ${action === 'approved' ? 'approved and published' : 'rejected'} successfully.`);
+    }
+
+    function showSection(name) {
+        const titles = { overview: 'Fleet Dashboard', fleet: 'Live Fleet Management', analytics: 'Analytics & Reports', incidents: 'Incident Management', reviews: 'Reviews Moderation', routes: 'Routes & Stops' };
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        document.getElementById('topbar-title').textContent = titles[name] || name;
+        showToast(`Navigated to ${titles[name]}`);
+    }
+    </script>
+</body>
+</html>

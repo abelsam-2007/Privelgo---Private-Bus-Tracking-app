@@ -1,0 +1,22 @@
+# Tasks - Privelgo Implementation
+
+- [x] Database & Node.js Backend (`backend/`)
+    - [x] Create `schema.sql` (PostgreSQL with PostGIS syntax)
+    - [x] Create `server.js` (Express REST APIs + smart routing logic + fare calculator + reviews endpoints)
+- [x] Flutter Codebase Setup (`flutter_app/`)
+    - [x] Create `pubspec.yaml`
+    - [x] Implement `lib/core/theme/app_theme.dart` (brand color palette, typography)
+    - [x] Implement core API client and services
+    - [x] Implement Clean Architecture Domain models (Bus, Stop, Route, Review)
+    - [x] Create presentation screens for Passengers (Home, Map, Route Details, Trip Planner, Profiles)
+    - [x] Create presentation screens for Drivers (GPS sharing toggle, Occupancy reporter, Emergency button)
+    - [x] Create presentation screens for Operators & Admins (Alerts feed, overview stats)
+- [x] Interactive Web Simulator Dashboard (`dashboard/`)
+    - [x] Copy logo asset or use brand logo representation
+    - [x] Create `index.html` (multi-pane layout containing Passenger preview, Driver dashboard, and Admin portal)
+    - [x] Create `style.css` (premium glassmorphism, responsive styles, map styling)
+    - [x] Create `app.js` (Leaflet interactive map, real-time bus simulators, route calculators, reviews submission, analytics charts)
+- [/] Verification & Demo
+    - [ ] Launch local server for dashboard and test live maps and tracking in the browser
+    - [ ] Inspect visual alignment with brand guidelines and verify zero placeholders
+    - [ ] Generate final walkthrough documentation

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Privelgo Driver Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        :root {
+            --dark: #184E6C; --steel: #387EA2; --sky: #5BA3C6;
+            --light: #9BCBE5; --bg: #DDECF6; --white: #fff;
+            --text: #1C2A38; --grey: #7A8D9F;
+            --green: #2E7D32; --orange: #E65100; --red: #C62828;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column;
+            max-width: 430px; margin: 0 auto;
+            box-shadow: 0 0 80px rgba(0,0,0,0.15);
+        }
+
+        /* ── HEADER ── */
+        .driver-header {
+            background: linear-gradient(160deg, var(--dark) 0%, #1a4a62 100%);
+            padding: 48px 20px 20px;
+            flex-shrink: 0;
+        }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .back-btn {
+            width: 36px; height: 36px; border-radius: 12px;
+            background: rgba(255,255,255,0.12); border: none;
+            color: white; font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            text-decoration: none;
+        }
+        .header-title { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: white; }
+        .header-badge { background: rgba(255,255,255,0.12); border-radius: 8px; padding: 5px 10px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.8); }
+
+        /* Driver Card */
+        .driver-card {
+            background: rgba(255,255,255,0.12); border-radius: 18px;
+            padding: 14px; display: flex; align-items: center; gap: 12px;
+        }
+        .driver-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.3); }
+        .driver-meta h3 { font-size: 15px; font-weight: 700; color: white; }
+        .driver-meta p { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+        .gps-indicator { margin-left: auto; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .gps-dot { width: 10px; height: 10px; border-radius: 50%; background: #aaa; }
+        .gps-dot.active { background: #4CAF50; box-shadow: 0 0 0 0 rgba(76,175,80,0.7); animation: gps-pulse 1.5s infinite; }
+        @keyframes gps-pulse { 0% { box-shadow: 0 0 0 0 rgba(76,175,80,0.7); } 70% { box-shadow: 0 0 0 8px rgba(76,175,80,0); } 100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); } }
+        .gps-label { font-size: 8px; color: rgba(255,255,255,0.55); font-weight: 700; }
+
+        /* ── MAP ── */
+        #driver-map { height: 200px; flex-shrink: 0; }
+
+        /* ── BODY ── */
+        .driver-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+        .driver-body::-webkit-scrollbar { display: none; }
+
+        /* Control cards */
+        .ctrl-card {
+            background: var(--white); border-radius: 20px;
+            padding: 18px; box-shadow: 0 2px 16px rgba(24,78,108,0.06);
+        }
+        .ctrl-card h4 { font-size: 13px; font-weight: 700; color: var(--dark); margin-bottom: 3px; }
+        .ctrl-card .sub { font-size: 10px; color: var(--grey); margin-bottom: 14px; }
+
+        /* Trip toggle */
+        .trip-toggle-row { display: flex; gap: 10px; }
+        .btn-start-trip {
+            flex: 1; border: none; border-radius: 14px;
+            padding: 14px; font-size: 14px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 8px; transition: all 0.3s;
+        }
+        .btn-start-trip.start { background: linear-gradient(135deg, var(--dark), var(--steel)); color: white; box-shadow: 0 4px 16px rgba(24,78,108,0.3); }
+        .btn-start-trip.end { background: linear-gradient(135deg, #E65100, #BF360C); color: white; box-shadow: 0 4px 16px rgba(198,40,40,0.3); }
+
+        .trip-status-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .t-stat { background: var(--bg); border-radius: 12px; padding: 10px; text-align: center; }
+        .t-stat .v { font-size: 14px; font-weight: 800; color: var(--dark); }
+        .t-stat .l { font-size: 9px; color: var(--grey); margin-top: 2px; }
+
+        /* Passenger counter */
+        .counter-area { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 14px; }
+        .ctr-btn {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: var(--bg); border: none; font-size: 18px;
+            color: var(--dark); cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: all 0.2s;
+        }
+        .ctr-btn:active { transform: scale(0.9); background: var(--light); }
+        .ctr-display { text-align: center; }
+        .ctr-num { font-family: 'Outfit', sans-serif; font-size: 48px; font-weight: 800; color: var(--dark); line-height: 1; }
+        .ctr-cap { font-size: 11px; color: var(--grey); font-weight: 600; }
+
+        .occ-pills { display: flex; gap: 8px; }
+        .occ-pill {
+            flex: 1; padding: 8px 6px; border-radius: 10px;
+            text-align: center; font-size: 10px; font-weight: 700;
+            opacity: 0.35; transition: opacity 0.3s; border: 1.5px solid transparent;
+        }
+        .occ-pill.active { opacity: 1; }
+        .occ-pill.seats { background: #E8F5E9; color: var(--green); border-color: #A5D6A7; }
+        .occ-pill.moderate { background: #FFF3E0; color: var(--orange); border-color: #FFCC80; }
+        .occ-pill.full { background: #FFEBEE; color: var(--red); border-color: #FFCDD2; }
+
+        /* Delay selector */
+        .delay-options { display: flex; flex-direction: column; gap: 8px; }
+        .delay-opt {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px; border-radius: 12px; cursor: pointer;
+            background: var(--bg); border: 1.5px solid transparent;
+            transition: all 0.2s;
+        }
+        .delay-opt.selected { border-color: var(--dark); background: rgba(24,78,108,0.06); }
+        .delay-opt i { font-size: 14px; width: 18px; text-align: center; }
+        .delay-opt span { font-size: 12px; font-weight: 600; color: var(--text); }
+        .delay-opt .d-indicator { margin-left: auto; width: 10px; height: 10px; border-radius: 50%; }
+
+        /* Activity Log */
+        .log-feed { max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .log-feed::-webkit-scrollbar { display: none; }
+        .log-entry { background: var(--bg); border-radius: 8px; padding: 8px 12px; font-size: 10.5px; color: var(--text); display: flex; justify-content: space-between; }
+        .log-entry .time { color: var(--grey); font-size: 9.5px; }
+
+        /* SOS Zone */
+        .sos-zone {
+            background: #FFF5F5; border: 1.5px solid #FFCDD2;
+            border-radius: 20px; padding: 18px;
+        }
+        .sos-zone h4 { font-size: 13px; font-weight: 700; color: var(--red); margin-bottom: 4px; }
+        .sos-zone p { font-size: 10px; color: #8D6E63; margin-bottom: 14px; line-height: 1.5; }
+        .btn-sos-panic {
+            width: 100%; background: linear-gradient(135deg, var(--red), #B71C1C);
+            color: white; border: none; border-radius: 14px;
+            padding: 16px; font-size: 13px; font-weight: 800;
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 10px;
+            box-shadow: 0 6px 20px rgba(198,40,40,0.35);
+            animation: sos-warn 2.5s infinite;
+        }
+        @keyframes sos-warn { 0%,100% { box-shadow: 0 6px 20px rgba(198,40,40,0.35); } 50% { box-shadow: 0 6px 30px rgba(198,40,40,0.55); } }
+
+        /* Bottom back nav */
+        .bottom-back {
+            background: var(--white); border-top: 1px solid rgba(24,78,108,0.06);
+            padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+            flex-shrink: 0;
+        }
+        .bottom-back a { color: var(--grey); text-decoration: none; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .bottom-back a:hover { color: var(--dark); }
+    </style>
+</head>
+<body>
+    <div class="driver-header">
+        <div class="header-top">
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <span class="header-title">Driver Console</span>
+            <span class="header-badge">WP-ND-8432</span>
+        </div>
+        <div class="driver-card">
+            <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80" alt="Driver" class="driver-avatar">
+            <div class="driver-meta">
+                <h3>Sunil Perera</h3>
+                <p>Express Transit Co. • License # WP-182390</p>
+            </div>
+            <div class="gps-indicator">
+                <div class="gps-dot" id="gps-dot"></div>
+                <span class="gps-label" id="gps-label">OFFLINE</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIVE MAP -->
+    <div id="driver-map"></div>
+
+    <!-- BODY -->
+    <div class="driver-body">
+
+        <!-- Trip Control -->
+        <div class="ctrl-card">
+            <h4>Trip Control</h4>
+            <div class="sub">Route 138 — Kottawa ↔ Pettah</div>
+            <div class="trip-toggle-row" style="margin-bottom:14px">
+                <button class="btn-start-trip start" id="btn-trip" onclick="toggleTrip()">
+                    <i class="fa-solid fa-play" id="trip-icon"></i>
+                    <span id="trip-label">Start Trip</span>
+                </button>
+            </div>
+            <div class="trip-status-row">
+                <div class="t-stat"><div class="v" id="trip-duration">—</div><div class="l">Duration</div></div>
+                <div class="t-stat"><div class="v" id="trip-stops">0</div><div class="l">Stops Done</div></div>
+                <div class="t-stat"><div class="v" id="trip-speed">0 km/h</div><div class="l">Speed</div></div>
+            </div>
+        </div>
+
+        <!-- Passenger Counter -->
+        <div class="ctrl-card">
+            <h4>Passenger Occupancy</h4>
+            <div class="sub">Update live headcount for passengers tracking</div>
+            <div class="counter-area">
+                <button class="ctr-btn" onclick="changePassengers(-1)"><i class="fa-solid fa-minus"></i></button>
+                <div class="ctr-display">
+                    <div class="ctr-num" id="pass-count">14</div>
+                    <div class="ctr-cap">of 42 capacity</div>
+                </div>
+                <button class="ctr-btn" onclick="changePassengers(1)"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="occ-pills">
+                <div class="occ-pill seats active" id="pill-seats">🟢 Seats Available</div>
+                <div class="occ-pill moderate" id="pill-mod">🟡 Crowded</div>
+                <div class="occ-pill full" id="pill-full">🔴 Full</div>
+            </div>
+        </div>
+
+        <!-- Delay Report -->
+        <div class="ctrl-card">
+            <h4>Delay Status</h4>
+            <div class="sub">Update GPS schedule — broadcast to all passengers</div>
+            <div class="delay-options">
+                <div class="delay-opt selected" onclick="setDelay(this, 0, 'On Time')">
+                    <i class="fa-solid fa-check-circle" style="color:var(--green)"></i>
+                    <span>On Time</span>
+                    <div class="d-indicator" style="background:var(--green)"></div>
+                </div>
+                <div class="delay-opt" onclick="setDelay(this, 2, '2 Min Delay')">
+                    <i class="fa-solid fa-clock" style="color:var(--orange)"></i>
+                    <span>2 Min Delay — Minor Traffic</span>
+                    <div class="d-indicator" style="background:var(--orange)"></div>
+                </div>
+                <div class="delay-opt" onclick="setDelay(this, 5, '5 Min Delay')">
+                    <i class="fa-solid fa-clock" style="color:var(--orange)"></i>
+                    <span>5 Min Delay — Heavy Traffic</span>
+                    <div class="d-indicator" style="background:var(--orange)"></div>
+                </div>
+                <div class="delay-opt" onclick="setDelay(this, 10, '10 Min Delay')">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i>
+                    <span>10+ Min Delay — Accident / Closure</span>
+                    <div class="d-indicator" style="background:var(--red)"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="ctrl-card">
+            <h4>Activity Log</h4>
+            <div class="sub" style="margin-bottom:10px">Real-time GPS events and updates</div>
+            <div class="log-feed" id="log-feed">
+                <div class="log-entry"><span>App initialized. Awaiting trip start.</span><span class="time">22:31</span></div>
+            </div>
+        </div>
+
+        <!-- SOS Zone -->
+        <div class="sos-zone">
+            <h4>🚨 Emergency Panic Button</h4>
+            <p>Immediately transmits your GPS coordinates and triggers police, medical, and operator dispatch services. Use only in genuine emergencies.</p>
+            <button class="btn-sos-panic" onclick="triggerSOSPanic()">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                ACTIVATE EMERGENCY SOS
+            </button>
+        </div>
+
+        <div style="height:10px"></div>
+    </div>
+
+    <div class="bottom-back">
+        <a href="index.html"><i class="fa-solid fa-arrow-left"></i> Back to Hub</a>
+        <a href="passenger.html" style="margin-left:auto"><i class="fa-solid fa-mobile-screen-button"></i> Passenger View</a>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+    const PATH = [
+        { lat: 6.9322, lon: 79.8450 }, { lat: 6.9250, lon: 79.8480 },
+        { lat: 6.9180, lon: 79.8510 }, { lat: 6.9145, lon: 79.8580 },
+        { lat: 6.9125, lon: 79.8640 }, { lat: 6.9130, lon: 79.8720 },
+        { lat: 6.9140, lon: 79.8800 }, { lat: 6.8950, lon: 79.8840 },
+        { lat: 6.8760, lon: 79.8880 },
+    ];
+    const STOPS_PATH = ['Colombo Central','Liberty Junction','Town Hall','Borella','Nugegoda'];
+
+    let tripActive = false;
+    let pathStep = 0;
+    let passengers = 14;
+    let tripSeconds = 0;
+    let tripInterval = null;
+    let simInterval = null;
+    let startTime = null;
+
+    // MAP
+    const map = L.map('driver-map', { zoomControl: false }).setView([PATH[0].lat, PATH[0].lon], 14);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '©OSM' }).addTo(map);
+    const routeLine = L.polyline(PATH.map(p => [p.lat, p.lon]), { color: '#184E6C', weight: 4, opacity: 0.6, dashArray: '8,4' }).addTo(map);
+
+    const busIcon = (active) => L.divIcon({ className: '', html: `<div style="background:${active ? '#184E6C' : '#888'};color:white;padding:6px 10px;border-radius:10px;font-weight:800;font-size:11px;box-shadow:0 3px 10px rgba(0,0,0,0.3)">🚌 138</div>`, iconSize: [52, 26] });
+    let busMarker = L.marker([PATH[0].lat, PATH[0].lon], { icon: busIcon(false) }).addTo(map);
+
+    function toggleTrip() {
+        tripActive = !tripActive;
+        const btn = document.getElementById('btn-trip');
+        const icon = document.getElementById('trip-icon');
+        const label = document.getElementById('trip-label');
+        const dot = document.getElementById('gps-dot');
+        const gpslbl = document.getElementById('gps-label');
+
+        if (tripActive) {
+            btn.className = 'btn-start-trip end';
+            icon.className = 'fa-solid fa-stop'; label.textContent = 'End Trip';
+            dot.classList.add('active'); gpslbl.textContent = 'LIVE';
+            busMarker.setIcon(busIcon(true));
+            startTime = new Date();
+            tripInterval = setInterval(updateTripTimer, 1000);
+            simInterval = setInterval(simulateGPS, 4000);
+            addLog('Trip started — GPS broadcasting active');
+        } else {
+            btn.className = 'btn-start-trip start';
+            icon.className = 'fa-solid fa-play'; label.textContent = 'Start Trip';
+            dot.classList.remove('active'); gpslbl.textContent = 'OFFLINE';
+            busMarker.setIcon(busIcon(false));
+            clearInterval(tripInterval); clearInterval(simInterval);
+            document.getElementById('trip-duration').textContent = '—';
+            document.getElementById('trip-stops').textContent = '0';
+            document.getElementById('trip-speed').textContent = '0 km/h';
+            pathStep = 0;
+            busMarker.setLatLng([PATH[0].lat, PATH[0].lon]);
+            map.setView([PATH[0].lat, PATH[0].lon], 14);
+            addLog('Trip ended — GPS broadcast stopped');
+        }
+    }
+
+    function updateTripTimer() {
+        tripSeconds++;
+        const m = Math.floor(tripSeconds / 60), s = tripSeconds % 60;
+        document.getElementById('trip-duration').textContent = `${m}m ${s}s`;
+        const speed = Math.floor(Math.random() * 18) + 28;
+        document.getElementById('trip-speed').textContent = `${speed} km/h`;
+    }
+
+    function simulateGPS() {
+        pathStep = (pathStep + 1) % PATH.length;
+        const pos = PATH[pathStep];
+        busMarker.setLatLng([pos.lat, pos.lon]);
+        map.panTo([pos.lat, pos.lon]);
+        document.getElementById('trip-stops').textContent = Math.min(pathStep, STOPS_PATH.length - 1);
+        const stopName = STOPS_PATH[Math.min(pathStep, STOPS_PATH.length - 1)];
+        addLog(`GPS update — approaching ${stopName} (${pos.lat.toFixed(4)}, ${pos.lon.toFixed(4)})`);
+    }
+
+    function changePassengers(delta) {
+        passengers = Math.max(0, Math.min(42, passengers + delta));
+        document.getElementById('pass-count').textContent = passengers;
+        const p1 = document.getElementById('pill-seats');
+        const p2 = document.getElementById('pill-mod');
+        const p3 = document.getElementById('pill-full');
+        p1.classList.remove('active'); p2.classList.remove('active'); p3.classList.remove('active');
+        if (passengers < 18) { p1.classList.add('active'); addLog(`Occupancy: Seats Available (${passengers}/42)`); }
+        else if (passengers < 36) { p2.classList.add('active'); addLog(`Occupancy: Moderately Crowded (${passengers}/42)`); }
+        else { p3.classList.add('active'); addLog(`Occupancy: Full / Standees (${passengers}/42)`); }
+    }
+
+    function setDelay(el, mins, label) {
+        document.querySelectorAll('.delay-opt').forEach(d => d.classList.remove('selected'));
+        el.classList.add('selected');
+        addLog(`Delay status updated: ${label}`);
+    }
+
+    function addLog(msg) {
+        const feed = document.getElementById('log-feed');
+        const now = new Date();
+        const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `<span>${msg}</span><span class="time">${time}</span>`;
+        feed.insertBefore(entry, feed.firstChild);
+    }
+
+    function triggerSOSPanic() {
+        if (confirm('🚨 EMERGENCY SOS — This will immediately contact police and operator dispatch. Activate?')) {
+            addLog('🚨 EMERGENCY SOS ACTIVATED — dispatcher and operator notified!');
+            alert('Emergency signal sent. Stay calm. Help is on the way.');
+        }
+    }
+    </script>
+</body>
+</html>

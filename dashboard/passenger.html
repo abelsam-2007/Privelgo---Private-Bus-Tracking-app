@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Privelgo Passenger App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        :root {
+            --dark: #184E6C; --steel: #387EA2; --sky: #5BA3C6;
+            --light: #9BCBE5; --bg: #DDECF6; --white: #fff;
+            --text: #1C2A38; --grey: #7A8D9F; --green: #2E7D32;
+            --orange: #E65100; --red: #C62828;
+            --card-shadow: 0 4px 24px rgba(24,78,108,0.10);
+            --nav-h: 72px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-width: 430px;
+            margin: 0 auto;
+            position: relative;
+            box-shadow: 0 0 80px rgba(0,0,0,0.15);
+        }
+
+        /* ── MAP LAYER ── */
+        #map {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        /* ── SCREENS ── */
+        .screen {
+            position: absolute;
+            inset: 0;
+            bottom: var(--nav-h);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 5;
+        }
+        .screen.active { display: flex; }
+        #screen-home { background: transparent; }
+
+        /* ── HEADER ── */
+        .app-header {
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(16px);
+            padding: 52px 20px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(24,78,108,0.06);
+            flex-shrink: 0;
+        }
+        .header-brand {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .header-brand svg { width: 30px; height: 30px; }
+        .header-brand .name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px; font-weight: 800;
+            color: var(--dark);
+        }
+        .header-actions { display: flex; gap: 8px; }
+        .icon-btn {
+            width: 38px; height: 38px; border-radius: 12px;
+            background: var(--bg); border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--dark); font-size: 15px;
+            transition: background 0.2s;
+        }
+        .icon-btn:active { background: var(--light); }
+
+        /* ── HOME SCREEN (MAP) ── */
+        .home-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .home-top {
+            padding: 52px 16px 12px;
+            pointer-events: all;
+        }
+        .greeting-pill {
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.93);
+            backdrop-filter: blur(16px);
+            border-radius: 20px; padding: 12px 16px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 10px;
+        }
+        .greeting-left { display: flex; align-items: center; gap: 10px; }
+        .greeting-left img {
+            width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+            border: 2px solid var(--light);
+        }
+        .greeting-left h3 { font-size: 14px; font-weight: 700; color: var(--dark); }
+        .greeting-left p { font-size: 11px; color: var(--grey); }
+        .pts-badge {
+            background: linear-gradient(135deg, var(--dark), var(--steel));
+            color: white; padding: 5px 10px; border-radius: 10px;
+            font-size: 11px; font-weight: 700;
+            display: flex; align-items: center; gap: 5px;
+        }
+
+        .search-bar {
+            background: rgba(255,255,255,0.93);
+            backdrop-filter: blur(16px);
+            border-radius: 16px; padding: 0 16px;
+            display: flex; align-items: center; gap: 10px;
+            box-shadow: var(--card-shadow);
+            cursor: pointer;
+        }
+        .search-bar i { color: var(--steel); font-size: 16px; }
+        .search-bar input {
+            flex: 1; border: none; background: transparent;
+            padding: 14px 0; font-size: 14px; font-weight: 500;
+            color: var(--text); outline: none;
+            cursor: pointer;
+        }
+
+        /* Home Bottom Sheet */
+        .home-bottom {
+            margin-top: auto;
+            pointer-events: all;
+        }
+        .bottom-sheet {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 28px 28px 0 0;
+            padding: 12px 20px 0;
+            box-shadow: 0 -8px 40px rgba(24,78,108,0.12);
+            max-height: 56vh;
+            overflow-y: auto;
+        }
+        .sheet-handle {
+            width: 40px; height: 4px; border-radius: 10px;
+            background: #ddd; margin: 0 auto 16px;
+        }
+        .sheet-section-title {
+            font-size: 13px; font-weight: 700; color: var(--dark);
+            margin-bottom: 12px; display: flex; justify-content: space-between;
+        }
+        .sheet-section-title a { font-size: 11px; color: var(--steel); text-decoration: none; font-weight: 600; }
+
+        /* Shortcut pills */
+        .shortcuts {
+            display: flex; gap: 8px; margin-bottom: 16px;
+            overflow-x: auto; padding-bottom: 4px;
+        }
+        .shortcuts::-webkit-scrollbar { display: none; }
+        .shortcut-pill {
+            flex-shrink: 0;
+            display: flex; align-items: center; gap: 8px;
+            background: var(--bg); border-radius: 14px;
+            padding: 10px 14px; cursor: pointer;
+            border: 1px solid rgba(24,78,108,0.06);
+            transition: background 0.2s;
+        }
+        .shortcut-pill:active { background: var(--light); }
+        .shortcut-pill .s-icon {
+            width: 32px; height: 32px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: white;
+        }
+        .shortcut-pill .s-text h5 { font-size: 11px; font-weight: 700; color: var(--dark); }
+        .shortcut-pill .s-text p { font-size: 9px; color: var(--grey); }
+
+        /* Alert Banner */
+        .alert-banner {
+            background: #FFF8E1; border: 1px solid #FFCA28;
+            border-radius: 14px; padding: 10px 14px;
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 14px;
+        }
+        .alert-banner i { color: #F57F17; font-size: 14px; flex-shrink: 0; }
+        .alert-banner p { font-size: 11px; color: #5D4037; line-height: 1.4; }
+
+        /* Nearby Buses */
+        .arrivals-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+        .arrival-card {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--bg); border-radius: 16px; padding: 12px 14px;
+            cursor: pointer; transition: all 0.2s;
+            border: 1px solid rgba(24,78,108,0.05);
+        }
+        .arrival-card:active { transform: scale(0.98); background: var(--light); }
+        .bus-num-badge {
+            min-width: 44px; padding: 6px 10px;
+            background: var(--dark); color: white;
+            border-radius: 10px; font-size: 13px; font-weight: 800;
+            text-align: center;
+        }
+        .arr-info { flex: 1; }
+        .arr-info h5 { font-size: 13px; font-weight: 700; color: var(--dark); }
+        .arr-info .occ-label {
+            font-size: 10px; font-weight: 600; margin-top: 2px;
+        }
+        .occ-green { color: var(--green); }
+        .occ-orange { color: var(--orange); }
+        .occ-red { color: var(--red); }
+        .eta-box { text-align: right; }
+        .eta-box .eta-num { font-size: 22px; font-weight: 800; color: var(--dark); line-height: 1; }
+        .eta-box .eta-lbl { font-size: 9px; color: var(--grey); font-weight: 600; }
+
+        /* ── PLANNER SCREEN ── */
+        #screen-planner {
+            background: var(--white);
+        }
+        .planner-header {
+            background: var(--dark);
+            padding: 52px 20px 20px;
+            flex-shrink: 0;
+        }
+        .planner-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px; font-weight: 700; color: white; margin-bottom: 4px;
+        }
+        .planner-header p { font-size: 12px; color: rgba(255,255,255,0.6); }
+        .planner-body { flex: 1; overflow-y: auto; padding: 20px; }
+        .input-card {
+            background: var(--bg); border-radius: 20px; padding: 6px;
+            margin-bottom: 16px; border: 1px solid rgba(24,78,108,0.08);
+        }
+        .input-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; position: relative;
+        }
+        .input-row:not(:last-child)::after {
+            content: ''; position: absolute; bottom: 0; left: 44px; right: 16px;
+            height: 1px; background: rgba(24,78,108,0.06);
+        }
+        .input-row i { font-size: 16px; width: 20px; text-align: center; }
+        .input-row input {
+            flex: 1; border: none; background: transparent;
+            font-size: 13px; font-weight: 500; color: var(--text); outline: none;
+        }
+        .input-row input::placeholder { color: var(--grey); }
+        .dot-start { color: var(--steel); }
+        .dot-dest { color: #E63946; }
+
+        .p-type-row { display: flex; gap: 8px; margin-bottom: 16px; }
+        .p-chip {
+            flex: 1; text-align: center; padding: 10px 6px;
+            background: var(--bg); border-radius: 12px; font-size: 11px;
+            font-weight: 700; color: var(--steel); cursor: pointer;
+            border: 1.5px solid transparent; transition: all 0.2s;
+        }
+        .p-chip.active { background: var(--dark); color: white; border-color: var(--dark); }
+
+        .btn-plan {
+            width: 100%; background: linear-gradient(135deg, var(--dark), var(--steel));
+            color: white; border: none; border-radius: 16px;
+            padding: 16px; font-size: 14px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 10px; margin-bottom: 24px;
+            transition: opacity 0.2s; box-shadow: 0 4px 20px rgba(24,78,108,0.3);
+        }
+        .btn-plan:active { opacity: 0.85; }
+
+        .results-title { font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 14px; }
+        .route-option {
+            background: var(--bg); border-radius: 20px; padding: 18px;
+            margin-bottom: 14px; border: 1.5px solid rgba(24,78,108,0.06);
+            cursor: pointer; transition: all 0.2s;
+        }
+        .route-option:active { transform: scale(0.99); }
+        .route-option.recommended { border-color: var(--steel); background: white; }
+        .route-opt-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .route-opt-head h4 { font-size: 13px; font-weight: 700; color: var(--dark); }
+        .route-opt-head .fare { font-size: 18px; font-weight: 800; color: var(--green); }
+        .route-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+        .r-meta-item { text-align: center; background: rgba(24,78,108,0.04); border-radius: 10px; padding: 8px; }
+        .r-meta-item i { font-size: 13px; color: var(--steel); margin-bottom: 3px; }
+        .r-meta-item div { font-size: 11px; font-weight: 700; color: var(--dark); }
+        .r-meta-item p { font-size: 9px; color: var(--grey); }
+        .route-steps { background: rgba(24,78,108,0.03); border-radius: 12px; padding: 12px; }
+        .step { display: flex; gap: 10px; font-size: 11px; color: var(--text); padding: 3px 0; }
+        .step i { color: var(--steel); margin-top: 1px; flex-shrink: 0; }
+        .btn-navigate {
+            width: 100%; margin-top: 12px;
+            background: var(--dark); color: white; border: none;
+            border-radius: 12px; padding: 12px; font-size: 13px;
+            font-weight: 700; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; gap: 8px;
+        }
+
+        /* ── FAVORITES ── */
+        #screen-favorites { background: var(--white); }
+        .page-header {
+            background: var(--white); padding: 52px 20px 16px;
+            border-bottom: 1px solid rgba(24,78,108,0.06); flex-shrink: 0;
+        }
+        .page-header h2 { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 700; color: var(--dark); }
+        .page-header p { font-size: 12px; color: var(--grey); }
+        .page-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+        .saved-place-card {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--bg); border-radius: 18px; padding: 16px;
+            margin-bottom: 12px; cursor: pointer; transition: all 0.2s;
+        }
+        .saved-place-card:active { transform: scale(0.98); }
+        .place-icon {
+            width: 48px; height: 48px; border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .saved-place-card .p-info h4 { font-size: 14px; font-weight: 700; color: var(--dark); }
+        .saved-place-card .p-info p { font-size: 11px; color: var(--grey); margin-top: 2px; }
+
+        .fav-bus-card {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--bg); border-radius: 18px; padding: 14px 16px;
+            margin-bottom: 10px; cursor: pointer;
+        }
+        .fav-bus-badge {
+            background: var(--dark); color: white;
+            border-radius: 10px; padding: 8px 12px;
+            font-size: 14px; font-weight: 800;
+        }
+        .fav-bus-card .b-info h4 { font-size: 13px; font-weight: 700; color: var(--dark); }
+        .fav-bus-card .b-info p { font-size: 10px; color: var(--grey); }
+
+        /* ── PROFILE ── */
+        #screen-profile { background: var(--white); }
+        .profile-header {
+            background: linear-gradient(160deg, var(--dark) 0%, var(--steel) 100%);
+            padding: 52px 20px 28px; text-align: center; flex-shrink: 0;
+        }
+        .profile-avatar {
+            width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+            border: 3px solid rgba(255,255,255,0.4); margin-bottom: 12px;
+        }
+        .profile-header h2 { font-size: 20px; font-weight: 700; color: white; }
+        .profile-header p { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 3px; }
+        .points-row {
+            display: flex; justify-content: center; gap: 8px;
+            margin-top: 14px;
+        }
+        .pts-pill {
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px; padding: 8px 16px;
+            font-size: 12px; font-weight: 600; color: white;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .profile-body { flex: 1; overflow-y: auto; padding: 20px; }
+        .menu-section h5 { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px; background: var(--bg); border-radius: 16px;
+            margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+        }
+        .menu-item:active { transform: scale(0.98); }
+        .menu-icon { width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .menu-item h4 { font-size: 13px; font-weight: 600; color: var(--dark); flex: 1; }
+        .menu-item .chevron { font-size: 11px; color: var(--grey); }
+
+        .history-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px; background: var(--bg); border-radius: 16px; margin-bottom: 8px;
+        }
+        .history-icon { width: 38px; height: 38px; border-radius: 12px; background: var(--dark); display: flex; align-items: center; justify-content: center; font-size: 14px; color: white; flex-shrink: 0; }
+        .h-info h4 { font-size: 13px; font-weight: 600; color: var(--dark); }
+        .h-info p { font-size: 10px; color: var(--grey); margin-top: 2px; }
+        .h-fare { font-size: 13px; font-weight: 700; color: var(--green); }
+
+        /* ── BOTTOM NAV ── */
+        .bottom-nav {
+            height: var(--nav-h);
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(24,78,108,0.06);
+            display: flex; align-items: center; justify-content: space-around;
+            padding: 0 8px 8px; flex-shrink: 0;
+            position: relative; z-index: 20;
+        }
+        .nav-tab {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 4px; padding: 8px 16px; border-radius: 16px;
+            cursor: pointer; transition: all 0.2s; flex: 1;
+            border: none; background: transparent;
+        }
+        .nav-tab i { font-size: 18px; color: var(--grey); transition: color 0.2s; }
+        .nav-tab span { font-size: 9px; font-weight: 700; color: var(--grey); transition: color 0.2s; }
+        .nav-tab.active i { color: var(--dark); }
+        .nav-tab.active span { color: var(--dark); }
+        .nav-tab.active { background: rgba(24,78,108,0.06); }
+
+        /* Bus Detail Modal */
+        .modal-overlay {
+            display: none; position: absolute; inset: 0;
+            background: rgba(0,0,0,0.4); z-index: 50;
+            align-items: flex-end;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-sheet {
+            background: white; border-radius: 28px 28px 0 0;
+            width: 100%; padding: 20px; max-height: 85vh; overflow-y: auto;
+            animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .modal-drag { width: 40px; height: 4px; background: #eee; border-radius: 10px; margin: 0 auto 18px; cursor: pointer; }
+        .modal-bus-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+        .modal-bus-head h3 { font-size: 20px; font-weight: 800; color: var(--dark); }
+        .modal-bus-head p { font-size: 11px; color: var(--grey); }
+        .status-pill {
+            padding: 5px 12px; border-radius: 10px; font-size: 10px; font-weight: 700;
+        }
+        .status-ontime { background: #E8F5E9; color: var(--green); }
+        .status-late { background: #FFEBEE; color: var(--red); }
+
+        .bus-stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+        .bus-stat-box { background: var(--bg); border-radius: 14px; padding: 12px; text-align: center; }
+        .bus-stat-box i { font-size: 16px; color: var(--steel); margin-bottom: 4px; }
+        .bus-stat-box .val { font-size: 12px; font-weight: 700; color: var(--dark); }
+        .bus-stat-box .lbl { font-size: 9px; color: var(--grey); }
+
+        .amenities-row { display: flex; gap: 8px; margin-bottom: 18px; }
+        .amenity-badge {
+            flex: 1; padding: 10px 6px; background: rgba(56,126,162,0.08);
+            border-radius: 12px; text-align: center; font-size: 10px;
+            font-weight: 700; color: var(--dark);
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .amenity-badge i { font-size: 14px; color: var(--steel); }
+
+        .section-title { font-size: 14px; font-weight: 700; color: var(--dark); margin-bottom: 12px; }
+        .review-card { background: var(--bg); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+        .review-card header { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--dark); margin-bottom: 6px; }
+        .review-card p { font-size: 11px; color: #444; line-height: 1.5; }
+        .stars { color: #FFB300; font-size: 11px; }
+
+        .write-review { background: rgba(56,126,162,0.06); border: 1px solid rgba(56,126,162,0.15); border-radius: 16px; padding: 14px; margin-bottom: 14px; }
+        .wr-title { font-size: 12px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
+        .star-row { display: flex; gap: 6px; margin-bottom: 10px; }
+        .star-row i { font-size: 20px; color: #ddd; cursor: pointer; transition: color 0.1s; }
+        .star-row i.lit { color: #FFB300; }
+        .wr-textarea {
+            width: 100%; height: 60px; border: 1px solid #ddd; border-radius: 10px;
+            padding: 8px 12px; font-size: 12px; resize: none; outline: none;
+            font-family: 'Inter', sans-serif; margin-bottom: 8px;
+        }
+        .wr-submit {
+            width: 100%; background: var(--dark); color: white; border: none;
+            border-radius: 10px; padding: 10px; font-size: 12px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn-sos {
+            width: 100%; background: #FFEBEE; color: var(--red);
+            border: 1px solid #FFCDD2; border-radius: 12px;
+            padding: 12px; font-size: 12px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 8px; margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MAP BACKGROUND -->
+    <div id="map"></div>
+
+    <!-- HOME SCREEN (TRANSPARENT OVER MAP) -->
+    <div class="screen active home-overlay" id="screen-home">
+        <div class="home-top">
+            <div class="greeting-pill">
+                <div class="greeting-left">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="User">
+                    <div>
+                        <h3>Hello, Alex Dev 👋</h3>
+                        <p>Where are you heading today?</p>
+                    </div>
+                </div>
+                <div class="pts-badge">
+                    <i class="fa-solid fa-award"></i>
+                    <span id="pts-display">240</span> pts
+                </div>
+            </div>
+            <div class="search-bar" onclick="switchTab('planner')">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search bus, route, or destination..." readonly>
+                <i class="fa-solid fa-sliders" style="color:var(--dark)"></i>
+            </div>
+        </div>
+
+        <div class="home-bottom">
+            <div class="bottom-sheet">
+                <div class="sheet-handle"></div>
+
+                <!-- Shortcuts -->
+                <div class="sheet-section-title">Quick Access</div>
+                <div class="shortcuts">
+                    <div class="shortcut-pill">
+                        <div class="s-icon" style="background:var(--dark)"><i class="fa-solid fa-home"></i></div>
+                        <div class="s-text"><h5>Home</h5><p>Mt. Lavinia</p></div>
+                    </div>
+                    <div class="shortcut-pill">
+                        <div class="s-icon" style="background:var(--steel)"><i class="fa-solid fa-briefcase"></i></div>
+                        <div class="s-text"><h5>Work</h5><p>Colombo WTC</p></div>
+                    </div>
+                    <div class="shortcut-pill">
+                        <div class="s-icon" style="background:#6A1B9A"><i class="fa-solid fa-graduation-cap"></i></div>
+                        <div class="s-text"><h5>Campus</h5><p>UOC Faculty</p></div>
+                    </div>
+                    <div class="shortcut-pill">
+                        <div class="s-icon" style="background:#2E7D32"><i class="fa-solid fa-hospital"></i></div>
+                        <div class="s-text"><h5>Hospital</h5><p>Narahenpita</p></div>
+                    </div>
+                </div>
+
+                <!-- Alert -->
+                <div class="alert-banner">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <p>⚠️ Bus WP-NC-9912 (Route 176) delayed by 8 mins due to traffic near Borella Junction.</p>
+                </div>
+
+                <!-- Nearby Arrivals -->
+                <div class="sheet-section-title">
+                    Nearby Arrivals
+                    <a href="#">See all stops →</a>
+                </div>
+                <div class="arrivals-list">
+                    <div class="arrival-card" onclick="openBusDetail(1)">
+                        <div class="bus-num-badge">138</div>
+                        <div class="arr-info">
+                            <h5>Privelgo Express Blue</h5>
+                            <p class="occ-label occ-green">🟢 Seats Available • AC • WiFi</p>
+                        </div>
+                        <div class="eta-box">
+                            <div class="eta-num">2</div>
+                            <div class="eta-lbl">mins</div>
+                        </div>
+                    </div>
+                    <div class="arrival-card" onclick="openBusDetail(2)">
+                        <div class="bus-num-badge" style="background:var(--steel)">100</div>
+                        <div class="arr-info">
+                            <h5>Lanka Luxury Star</h5>
+                            <p class="occ-label occ-orange">🟡 Moderately Crowded • AC</p>
+                        </div>
+                        <div class="eta-box">
+                            <div class="eta-num">5</div>
+                            <div class="eta-lbl">mins</div>
+                        </div>
+                    </div>
+                    <div class="arrival-card" onclick="openBusDetail(3)">
+                        <div class="bus-num-badge" style="background:#777">176</div>
+                        <div class="arr-info">
+                            <h5>City Commuter Lite</h5>
+                            <p class="occ-label occ-red">🔴 Full • 8 min late</p>
+                        </div>
+                        <div class="eta-box">
+                            <div class="eta-num">13</div>
+                            <div class="eta-lbl">mins</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="height:12px"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLANNER SCREEN -->
+    <div class="screen" id="screen-planner">
+        <div class="planner-header">
+            <h2>Trip Planner</h2>
+            <p>Find the best bus route & estimate fare</p>
+        </div>
+        <div class="planner-body">
+            <div class="input-card">
+                <div class="input-row">
+                    <i class="fa-solid fa-circle-dot dot-start"></i>
+                    <input type="text" id="p-start" value="Colombo Central" placeholder="Start location">
+                </div>
+                <div class="input-row">
+                    <i class="fa-solid fa-location-pin dot-dest"></i>
+                    <input type="text" id="p-dest" value="Mount Lavinia" placeholder="Destination">
+                </div>
+            </div>
+            <div class="p-type-row">
+                <div class="p-chip active" data-type="standard">Standard</div>
+                <div class="p-chip" data-type="student">Student 50%</div>
+                <div class="p-chip" data-type="senior">Senior 30%</div>
+            </div>
+            <button class="btn-plan" onclick="planTrip()">
+                <i class="fa-solid fa-route"></i> Find Routes & Estimate Fare
+            </button>
+            <div id="planner-results"></div>
+        </div>
+    </div>
+
+    <!-- FAVORITES SCREEN -->
+    <div class="screen" id="screen-favorites">
+        <div class="page-header">
+            <h2>Saved Places & Routes</h2>
+            <p>Your favorite destinations and buses</p>
+        </div>
+        <div class="page-body">
+            <div class="sheet-section-title" style="margin-bottom:14px">Saved Places</div>
+            <div class="saved-place-card">
+                <div class="place-icon" style="background:#E3F2FD"><i class="fa-solid fa-home" style="color:var(--dark)"></i></div>
+                <div class="p-info"><h4>Home</h4><p>Dehiwala Road, Mount Lavinia</p></div>
+            </div>
+            <div class="saved-place-card">
+                <div class="place-icon" style="background:#E8F5E9"><i class="fa-solid fa-briefcase" style="color:#2E7D32"></i></div>
+                <div class="p-info"><h4>Work / Office</h4><p>World Trade Center, Colombo Central</p></div>
+            </div>
+            <div class="saved-place-card">
+                <div class="place-icon" style="background:#F3E5F5"><i class="fa-solid fa-graduation-cap" style="color:#6A1B9A"></i></div>
+                <div class="p-info"><h4>University</h4><p>UOC Faculty of Management</p></div>
+            </div>
+
+            <div class="sheet-section-title" style="margin: 20px 0 14px">Favourite Buses</div>
+            <div class="fav-bus-card">
+                <div class="fav-bus-badge">138</div>
+                <div class="b-info"><h4>Privelgo Express Blue</h4><p>Pettah → Kottawa • WP-ND-8432</p></div>
+                <i class="fa-solid fa-heart" style="color:#E63946; font-size:14px"></i>
+            </div>
+            <div class="fav-bus-card">
+                <div class="fav-bus-badge" style="background:var(--steel)">100</div>
+                <div class="b-info"><h4>Lanka Luxury Star</h4><p>Pettah → Panadura • WP-NB-5544</p></div>
+                <i class="fa-solid fa-heart" style="color:#E63946; font-size:14px"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE SCREEN -->
+    <div class="screen" id="screen-profile">
+        <div class="profile-header">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" alt="Profile" class="profile-avatar">
+            <h2>Alex Dev</h2>
+            <p>alex@privelgo.com • Passenger</p>
+            <div class="points-row">
+                <div class="pts-pill"><i class="fa-solid fa-award" style="color:#FFB300"></i> <span id="pts-profile">240</span> Reward Points</div>
+                <div class="pts-pill"><i class="fa-solid fa-route"></i> 12 Trips</div>
+            </div>
+        </div>
+        <div class="profile-body">
+            <div class="menu-section" style="margin-bottom:20px">
+                <h5>Account</h5>
+                <div class="menu-item">
+                    <div class="menu-icon" style="background:#E3F2FD"><i class="fa-solid fa-clock-rotate-left" style="color:var(--dark)"></i></div>
+                    <h4>Travel History</h4>
+                    <i class="fa-solid fa-chevron-right chevron"></i>
+                </div>
+                <div class="menu-item">
+                    <div class="menu-icon" style="background:#E8F5E9"><i class="fa-solid fa-ticket" style="color:#2E7D32"></i></div>
+                    <h4>My Digital Tickets</h4>
+                    <i class="fa-solid fa-chevron-right chevron"></i>
+                </div>
+                <div class="menu-item">
+                    <div class="menu-icon" style="background:#FFF8E1"><i class="fa-solid fa-star" style="color:#F57F17"></i></div>
+                    <h4>My Reviews</h4>
+                    <i class="fa-solid fa-chevron-right chevron"></i>
+                </div>
+                <div class="menu-item">
+                    <div class="menu-icon" style="background:#F3E5F5"><i class="fa-solid fa-trophy" style="color:#6A1B9A"></i></div>
+                    <h4>Rewards & Badges</h4>
+                    <i class="fa-solid fa-chevron-right chevron"></i>
+                </div>
+            </div>
+            <div class="menu-section">
+                <h5>Recent Trips</h5>
+                <div class="history-item">
+                    <div class="history-icon"><i class="fa-solid fa-bus"></i></div>
+                    <div class="h-info" style="flex:1"><h4>Bus 138 — Pettah Route</h4><p>Today · 8.5 km · 25 mins</p></div>
+                    <div class="h-fare">40 LKR</div>
+                </div>
+                <div class="history-item">
+                    <div class="history-icon"><i class="fa-solid fa-bus"></i></div>
+                    <div class="h-info" style="flex:1"><h4>Bus 100 — Panadura Route</h4><p>Yesterday · 12 km · 32 mins</p></div>
+                    <div class="h-fare">50 LKR</div>
+                </div>
+            </div>
+            <div style="height:20px"></div>
+        </div>
+    </div>
+
+    <!-- BUS DETAIL MODAL -->
+    <div class="modal-overlay" id="bus-modal">
+        <div class="modal-sheet">
+            <div class="modal-drag" onclick="closeBusModal()"></div>
+            <div class="modal-bus-head">
+                <div>
+                    <h3 id="m-bus-num">WP-ND-8432</h3>
+                    <p id="m-bus-name">Privelgo Express Blue • Route 138</p>
+                </div>
+                <span class="status-pill status-ontime" id="m-status">On Time</span>
+            </div>
+            <div class="bus-stats-grid">
+                <div class="bus-stat-box">
+                    <i class="fa-solid fa-users"></i>
+                    <div class="val" id="m-occ">🟢 Seats</div>
+                    <div class="lbl">Occupancy</div>
+                </div>
+                <div class="bus-stat-box">
+                    <i class="fa-solid fa-gauge"></i>
+                    <div class="val" id="m-speed">35 km/h</div>
+                    <div class="lbl">Speed</div>
+                </div>
+                <div class="bus-stat-box">
+                    <i class="fa-solid fa-clock"></i>
+                    <div class="val" id="m-eta">2 mins</div>
+                    <div class="lbl">ETA</div>
+                </div>
+            </div>
+            <div class="amenities-row">
+                <div class="amenity-badge"><i class="fa-solid fa-snowflake"></i>AC</div>
+                <div class="amenity-badge"><i class="fa-solid fa-wifi"></i>WiFi</div>
+                <div class="amenity-badge"><i class="fa-solid fa-wheelchair"></i>Access</div>
+                <div class="amenity-badge"><i class="fa-solid fa-shield"></i>CCTV</div>
+            </div>
+            <div class="section-title">Passenger Reviews</div>
+            <div id="modal-reviews"></div>
+            <div class="write-review">
+                <div class="wr-title">Write a Review • Earn +15 pts</div>
+                <div class="star-row" id="modal-stars">
+                    <i class="fa-solid fa-star lit" data-r="1"></i>
+                    <i class="fa-solid fa-star lit" data-r="2"></i>
+                    <i class="fa-solid fa-star lit" data-r="3"></i>
+                    <i class="fa-solid fa-star lit" data-r="4"></i>
+                    <i class="fa-solid fa-star lit" data-r="5"></i>
+                </div>
+                <textarea class="wr-textarea" id="modal-review-text" placeholder="Describe your ride experience..."></textarea>
+                <button class="wr-submit" onclick="submitReview()">
+                    <i class="fa-solid fa-paper-plane"></i> Submit Review
+                </button>
+            </div>
+            <button class="btn-sos" onclick="triggerSOS()">
+                <i class="fa-solid fa-triangle-exclamation"></i> Report Driver / SOS Emergency
+            </button>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+        <button class="nav-tab active" onclick="switchTab('home')" id="tab-home">
+            <i class="fa-solid fa-compass"></i><span>Explore</span>
+        </button>
+        <button class="nav-tab" onclick="switchTab('planner')" id="tab-planner">
+            <i class="fa-solid fa-route"></i><span>Planner</span>
+        </button>
+        <button class="nav-tab" onclick="switchTab('favorites')" id="tab-favorites">
+            <i class="fa-solid fa-heart"></i><span>Saved</span>
+        </button>
+        <button class="nav-tab" onclick="switchTab('profile')" id="tab-profile">
+            <i class="fa-solid fa-circle-user"></i><span>Profile</span>
+        </button>
+    </nav>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+    // ── DATA ──
+    const BUSES_DATA = {
+        1: { num: 'WP-ND-8432', name: 'Privelgo Express Blue • Route 138', occ: '🟢 Seats Available', speed: '35 km/h', eta: '2 mins', status: 'On Time', statusClass: 'status-ontime', lat: 6.925, lon: 79.848 },
+        2: { num: 'WP-NB-5544', name: 'Lanka Luxury Star • Route 100', occ: '🟡 Moderately Crowded', speed: '28 km/h', eta: '5 mins', status: '3 min late', statusClass: 'status-late', lat: 6.882, lon: 79.860 },
+        3: { num: 'WP-NC-9912', name: 'City Commuter Lite • Route 176', occ: '🔴 Full / Standees', speed: '12 km/h', eta: '13 mins', status: '8 min late', statusClass: 'status-late', lat: 6.902, lon: 79.875 },
+    };
+
+    const STOPS = [
+        { name: 'Colombo Central', lat: 6.9322, lon: 79.8450 },
+        { name: 'Liberty Junction', lat: 6.9180, lon: 79.8510 },
+        { name: 'Town Hall', lat: 6.9125, lon: 79.8640 },
+        { name: 'Borella', lat: 6.9140, lon: 79.8800 },
+        { name: 'Havelock Town', lat: 6.8880, lon: 79.8610 },
+        { name: 'Wellawatte', lat: 6.8720, lon: 79.8600 },
+        { name: 'Dehiwala', lat: 6.8510, lon: 79.8630 },
+        { name: 'Mount Lavinia', lat: 6.8340, lon: 79.8660 },
+        { name: 'Nugegoda', lat: 6.8760, lon: 79.8880 },
+    ];
+
+    let reviews = [
+        { user: 'Sanduni Fernando', rating: 5, comment: 'Extremely clean bus with fast WiFi. AC was perfect!' },
+        { user: 'M. R. Mohamed', rating: 4, comment: 'Punctual and safe driving. Crowded during office hours.' },
+    ];
+    let selectedRating = 5;
+    let busMarkers = {};
+    let pts = 240;
+
+    const BUS_101_PATH = [
+        { lat: 6.9322, lon: 79.8450 }, { lat: 6.9250, lon: 79.8480 },
+        { lat: 6.9180, lon: 79.8510 }, { lat: 6.9125, lon: 79.8640 },
+        { lat: 6.9140, lon: 79.8800 }, { lat: 6.8880, lon: 79.8610 },
+        { lat: 6.8720, lon: 79.8600 }, { lat: 6.8510, lon: 79.8630 },
+        { lat: 6.8340, lon: 79.8660 },
+    ];
+    let pathStep = 0;
+
+    // ── MAP ──
+    const map = L.map('map', { zoomControl: false }).setView([6.892, 79.862], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OSM' }).addTo(map);
+
+    const stopIcon = L.divIcon({ className: '', html: '<div style="width:10px;height:10px;background:#387EA2;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>', iconSize: [10,10] });
+    STOPS.forEach(s => L.marker([s.lat, s.lon], { icon: stopIcon }).addTo(map).bindPopup(s.name));
+
+    function makeBusIcon(num, color) {
+        return L.divIcon({ className: '', html: `<div style="background:${color};color:white;padding:4px 8px;border-radius:8px;font-weight:700;font-size:10px;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;gap:3px;white-space:nowrap"><span>🚌</span>${num}</div>`, iconSize: [48, 24] });
+    }
+
+    busMarkers[1] = L.marker([BUS_101_PATH[0].lat, BUS_101_PATH[0].lon], { icon: makeBusIcon('138', '#184E6C') }).addTo(map).on('click', () => openBusDetail(1));
+    busMarkers[2] = L.marker([6.882, 79.860], { icon: makeBusIcon('100', '#2E7D32') }).addTo(map).on('click', () => openBusDetail(2));
+    busMarkers[3] = L.marker([6.902, 79.875], { icon: makeBusIcon('176', '#757575') }).addTo(map).on('click', () => openBusDetail(3));
+
+    // Animate bus along path
+    setInterval(() => {
+        pathStep = (pathStep + 1) % BUS_101_PATH.length;
+        busMarkers[1].setLatLng([BUS_101_PATH[pathStep].lat, BUS_101_PATH[pathStep].lon]);
+    }, 3500);
+
+    // ── NAV TABS ──
+    function switchTab(name) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        const s = document.getElementById('screen-' + name);
+        if (s) s.classList.add('active');
+        const t = document.getElementById('tab-' + name);
+        if (t) t.classList.add('active');
+
+        if (name === 'home') {
+            document.getElementById('map').style.display = 'block';
+        } else {
+            document.getElementById('map').style.display = 'none';
+        }
+    }
+
+    // ── BUS DETAIL ──
+    function openBusDetail(id) {
+        const b = BUSES_DATA[id];
+        document.getElementById('m-bus-num').textContent = b.num;
+        document.getElementById('m-bus-name').textContent = b.name;
+        document.getElementById('m-occ').textContent = b.occ;
+        document.getElementById('m-speed').textContent = b.speed;
+        document.getElementById('m-eta').textContent = b.eta;
+        const sp = document.getElementById('m-status');
+        sp.textContent = b.status; sp.className = 'status-pill ' + b.statusClass;
+        renderModalReviews();
+        document.getElementById('bus-modal').classList.add('open');
+    }
+    function closeBusModal() { document.getElementById('bus-modal').classList.remove('open'); }
+
+    // ── REVIEWS ──
+    function renderModalReviews() {
+        const div = document.getElementById('modal-reviews');
+        div.innerHTML = reviews.map(r => `
+            <div class="review-card">
+                <header><span>${r.user}</span><span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span></header>
+                <p>${r.comment}</p>
+            </div>`).join('');
+    }
+    document.querySelectorAll('#modal-stars i').forEach(star => {
+        star.addEventListener('click', () => {
+            selectedRating = parseInt(star.dataset.r);
+            document.querySelectorAll('#modal-stars i').forEach(s => {
+                s.classList.toggle('lit', parseInt(s.dataset.r) <= selectedRating);
+            });
+        });
+    });
+    function submitReview() {
+        const text = document.getElementById('modal-review-text').value.trim();
+        if (!text) { alert('Please write a review comment.'); return; }
+        reviews.unshift({ user: 'Alex Dev (You)', rating: selectedRating, comment: text });
+        pts += 15;
+        document.getElementById('pts-display').textContent = pts;
+        document.getElementById('pts-profile').textContent = pts;
+        document.getElementById('modal-review-text').value = '';
+        renderModalReviews();
+        alert('✅ Review submitted! You earned +15 Privelgo points.');
+    }
+    function triggerSOS() {
+        if (confirm('🚨 This will alert the operator and emergency services immediately. Continue?')) {
+            alert('Emergency SOS broadcast sent to dispatcher and operator.');
+        }
+    }
+
+    // ── TRIP PLANNER ──
+    function planTrip() {
+        const start = document.getElementById('p-start').value;
+        const dest = document.getElementById('p-dest').value;
+        const type = document.querySelector('.p-chip.active').dataset.type;
+        let base = 75;
+        if (type === 'student') base = base * 0.5;
+        else if (type === 'senior') base = base * 0.7;
+        const alt = base - 15;
+        const typeLabel = type === 'student' ? '50% Student Discount' : type === 'senior' ? '30% Senior Discount' : 'Standard Fare';
+
+        document.getElementById('planner-results').innerHTML = `
+            <div class="results-title">Routes from ${start} → ${dest}</div>
+            <div class="route-option recommended">
+                <div class="route-opt-head"><h4>⚡ Fastest / Best Route</h4><div class="fare">${base.toFixed(2)} LKR</div></div>
+                <div class="route-meta">
+                    <div class="r-meta-item"><i class="fa-solid fa-bus"></i><div>Bus 100</div><p>Route</p></div>
+                    <div class="r-meta-item"><i class="fa-solid fa-hourglass-half"></i><div>40 mins</div><p>Duration</p></div>
+                    <div class="r-meta-item"><i class="fa-solid fa-person-walking"></i><div>380m</div><p>Walking</p></div>
+                </div>
+                <div class="route-steps">
+                    <div class="step"><i class="fa-solid fa-circle-dot"></i><span>Walk 130m to Colombo Central stop</span></div>
+                    <div class="step"><i class="fa-solid fa-bus"></i><span>Board Bus 100 at 22:38 towards Panadura</span></div>
+                    <div class="step"><i class="fa-solid fa-list-ol"></i><span>Ride 5 stops (Wellawatte → Dehiwala)</span></div>
+                    <div class="step"><i class="fa-solid fa-location-pin"></i><span>Alight at Mount Lavinia stop</span></div>
+                    <div class="step"><i class="fa-solid fa-person-walking"></i><span>Walk 250m to your destination</span></div>
+                </div>
+                <div style="font-size:10px;color:var(--green);font-weight:700;margin-top:8px;padding:0 4px">${typeLabel}</div>
+                <button class="btn-navigate" onclick="alert('🧭 Navigation started! Head to Colombo Central stop.')"><i class="fa-solid fa-location-arrow"></i> Start Navigation</button>
+            </div>
+            <div class="route-option">
+                <div class="route-opt-head"><h4>🛋️ Least Crowded Option</h4><div class="fare">${alt.toFixed(2)} LKR</div></div>
+                <div class="route-meta">
+                    <div class="r-meta-item"><i class="fa-solid fa-bus"></i><div>Bus 138</div><p>Route</p></div>
+                    <div class="r-meta-item"><i class="fa-solid fa-hourglass-half"></i><div>48 mins</div><p>Duration</p></div>
+                    <div class="r-meta-item"><i class="fa-solid fa-person-walking"></i><div>550m</div><p>Walking</p></div>
+                </div>
+                <div class="route-steps">
+                    <div class="step"><i class="fa-solid fa-circle-dot"></i><span>Walk 350m to Liberty Junction stop</span></div>
+                    <div class="step"><i class="fa-solid fa-bus"></i><span>Board Bus 138 — seats available 🟢</span></div>
+                    <div class="step"><i class="fa-solid fa-list-ol"></i><span>Ride 4 stops to Mount Lavinia</span></div>
+                </div>
+            </div>`;
+    }
+
+    // Passenger type chips
+    document.querySelectorAll('.p-chip').forEach(c => {
+        c.addEventListener('click', () => {
+            document.querySelectorAll('.p-chip').forEach(x => x.classList.remove('active'));
+            c.classList.add('active');
+        });
+    });
+    </script>
+</body>
+</html>
